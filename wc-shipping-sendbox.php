@@ -537,6 +537,69 @@ if (!class_exists('WC_Shipping_Sendbox')) {
         die();
     }
 
+//register and add shipment order statuses
+function register_sendbox_posted_shipment_order_status() {
+    register_post_status( 'wc-sendbox-posted-shipment', array(
+        'label'                     => 'Posted shipment',
+        'public'                    => true,
+        'exclude_from_search'       => false,
+        'show_in_admin_all_list'    => true,
+        'show_in_admin_status_list' => true,
+        'label_count'               => _n_noop( 'Posted shipment <span class="count">(%s)</span>', 'Posted shipment <span class="count">(%s)</span>' )
+    ) );
+}
+add_action( 'init', 'register_sendbox_posted_shipment_order_status' );
+
+// Add to list of WC Order statuses
+function add_sendbox_posted_shipment_to_order_statuses( $order_statuses ) {
+
+    $new_order_statuses = array();
+
+    // add new order status after processing
+    foreach ( $order_statuses as $key => $status ) {
+
+        $new_order_statuses[ $key ] = $status;
+
+        if ( 'wc-processing' === $key ) {
+            $new_order_statuses['wc-sendbox-posted-shipment'] = 'Posted shipment';
+        }
+    }
+
+    return $new_order_statuses;
+}
+add_filter( 'wc_order_statuses', 'add_sendbox_posted_shipment_to_order_statuses' );
+
+function register_sendbox_updated_shipment_order_status() {
+    register_post_status( 'wc-sendbox-updated-shipment', array(
+        'label'                     => 'Sendbox updated shipment',
+        'public'                    => true,
+        'exclude_from_search'       => false,
+        'show_in_admin_all_list'    => true,
+        'show_in_admin_status_list' => true,
+        'label_count'               => _n_noop( 'Sendbox updated shipment <span class="count">(%s)</span>', 'Sendbox updated shipment <span class="count">(%s)</span>' )
+    ) );
+}
+add_action( 'init', 'register_sendbox_updated_shipment_order_status' );
+
+// Add to list of WC Order statuses
+function add_sendbox_updated_shipment_to_order_statuses( $order_statuses ) {
+
+    $new_order_statuses = array();
+
+    // add new order status after processing
+    foreach ( $order_statuses as $key => $status ) {
+
+        $new_order_statuses[ $key ] = $status;
+
+        if ( 'wc-processing' === $key ) {
+            $new_order_statuses['wc-sendbox-updated-shipment'] = 'Sendbox updated shipment';
+        }
+    }
+
+    return $new_order_statuses;
+}
+add_filter( 'wc_order_statuses', 'add_sendbox_updated_shipment_to_order_statuses' );
+
 
 // Add hook for admin <head></head>
 add_action('admin_head', 'sendbox_quotes_js');
@@ -560,10 +623,14 @@ function sendbox_quotes_js() {
 add_action('woocommerce_order_actions', 'add_sendbox_option', 10, 1 );
 function add_sendbox_option( $actions ) {
     global $theorder;
+
+
     if ( is_array( $actions ) ) {
+     
         $actions['get_sendbox_carrier_quotes'] = __( 'Ship via Sendbox' );
-    }
- 
+        
+        
+   }
     return $actions;
  
 }
@@ -650,6 +717,7 @@ function post_sendbox_shipment() {
     $origin_city=sanitize_text_field($_REQUEST['origin_city']);
     $origin_phone=sanitize_text_field($_REQUEST['origin_phone']);
     $origin_name=sanitize_text_field($_REQUEST['origin_name']);
+      $origin_email=sanitize_text_field($_REQUEST['origin_email']);
      $auth_header=sanitize_text_field($_REQUEST['auth_header']);
      $test_mode=sanitize_text_field($_REQUEST['test_mode']);
 	$use_max_carrier=sanitize_text_field($_REQUEST['use_max_carrier']);
@@ -677,6 +745,10 @@ function post_sendbox_shipment() {
 	  if(!$origin_city)
 	 {
 		 $origin_city="";
+	 }
+         if(!$origin_email)
+	 {
+		 $origin_email="";
 	 }
 	  if(!$origin_phone)
 	 {
@@ -722,10 +794,11 @@ function post_sendbox_shipment() {
 		 
 		  $sendbox_options['use_max_carrier']=$use_max_carrier;
 		  $test_mode=$test_mode;
-       
+    
      $order = new WC_Order($id);
     
 $post=build_sendbox_shipment_payload($order,$selected_rate_id,$fee,$sendbox_options);
+ 
 
 if($test_mode=="yes")
  $url= "http://api.sendbox.com.ng/v1/merchant/shipments";
@@ -755,11 +828,12 @@ $output=$response_body;
 
 $tracking_code=$response_body->{'code'};
 $status_code=$response_body->{'status_code'};
-$carrier=$response_body->{'carrier'};
+$carrier=$response_body->{'courier'};
 $carrier_name=$carrier->{'name'};
 $output= "Tracking Number:".$tracking_code."; Status:". $status_code;
 //update order status to shipment
-$order->update_status('processing', __($status_code, 'woocommerce'));
+
+ $order->update_status("wc-sendbox-posted-shipment"); 
 
 }else{
 $output='Sorry shipment could not be created.Try again later';
@@ -1272,7 +1346,8 @@ if($data["reference_code"]!=null)
   
   $status_code=$data['status_code'];
   $status_from_sendbox=$data['status']['name'];
-$order->update_status('processing', __($status_from_sendbox, 'woocommerce'));
+
+$order->update_status('wc-sendbox-updated-shipment');
   $response["status"]=200;
 }
 else
@@ -1308,7 +1383,8 @@ if($data["reference_code"]!=null)
   
   $status_code=$data['status_code'];
   $status_from_sendbox=$data['status']['name'];
-$order->update_status('processing', __($status_from_sendbox, 'woocommerce'));
+
+$order->update_status('wc-sendbox-updated-shipment', __($status_from_sendbox, 'woocommerce'));
   $response["status"]=200;
 }
 else
