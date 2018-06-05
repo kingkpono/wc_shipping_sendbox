@@ -1210,7 +1210,7 @@ $countries[$order->get_shipping_country()];
   "reference_code": "'.$order->get_id().'",
   
   "use_selected_rate": true,
-  "selected_rate_id": '.$selected_rate_id.',
+  "selected_rate_id": "'.$selected_rate_id.'",
   "accept_value_on_delivery": true,
   "amount_to_receive": '.($order->get_subtotal()+$fee).',
   "fee_payment_channel_code": "cash",
